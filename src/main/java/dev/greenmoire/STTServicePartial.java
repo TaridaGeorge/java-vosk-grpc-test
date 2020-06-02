@@ -9,21 +9,17 @@ import vosk.stt.v1.SttServiceOuterClass;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.UUID;
 
-import static vosk.stt.v1.SttServiceOuterClass.*;
-
-public class STTService {
+public class STTServicePartial {
 
     private final SttServiceGrpc.SttServiceStub sttClient;
 
-    public STTService() {
+    public STTServicePartial() {
 
         ManagedChannel channel = ManagedChannelBuilder.forAddress("172.17.0.2", 5001)
                 .usePlaintext()
@@ -33,25 +29,9 @@ public class STTService {
     }
 
     public void transcribeAudioFile(File file) throws IOException {
-        StreamObserver<StreamingRecognitionRequest> serverHandler = sendConfigRequest(UUID.randomUUID());
-
-        System.out.println("New transcribe request " + file.toString());
-
-        StreamingRecognitionRequest request;
-
-        request = StreamingRecognitionRequest.newBuilder()
-                .setAudioContent(ByteString.copyFrom(Files.readAllBytes(file.toPath())))
-                .build();
-        serverHandler.onNext(request);
-        serverHandler.onCompleted();
-
-        System.out.println("Audio scheduled for transcribing.");
-    }
-
-    public void transcribeAudioFileWithPartialResults(File file) throws IOException {
         int AUDIO_CHUNK_BUFFER_SIZE = 4000;
 
-        StreamObserver<StreamingRecognitionRequest> serverHandler = sendConfigRequest(UUID.randomUUID());
+        StreamObserver<SttServiceOuterClass.StreamingRecognitionRequest> serverHandler = sendConfigRequest(UUID.randomUUID());
 
         FileInputStream fileInputStream = new FileInputStream(file);
         FileChannel fileChannel = fileInputStream.getChannel();
@@ -60,10 +40,10 @@ public class STTService {
         while (fileChannel.read(buffer) > 0) {
             buffer.flip();
 
-            StreamingRecognitionRequest request;
+            SttServiceOuterClass.StreamingRecognitionRequest request;
 
-            request = StreamingRecognitionRequest.newBuilder()
-                    .setAudioContent(ByteString.copyFrom(Files.readAllBytes(file.toPath())))
+            request = SttServiceOuterClass.StreamingRecognitionRequest.newBuilder()
+                    .setAudioContent(ByteString.copyFrom(buffer))
                     .build();
 
             serverHandler.onNext(request);
@@ -73,19 +53,19 @@ public class STTService {
         fileChannel.close();
     }
 
-    private StreamObserver<StreamingRecognitionRequest> sendConfigRequest(UUID requestUUID) {
-        StreamObserver<StreamingRecognitionRequest> serverHandler;
-        RecognitionConfig config = RecognitionConfig.newBuilder()
-                .setSpecification(RecognitionSpec.newBuilder()
+    private StreamObserver<SttServiceOuterClass.StreamingRecognitionRequest> sendConfigRequest(UUID requestUUID) {
+        StreamObserver<SttServiceOuterClass.StreamingRecognitionRequest> serverHandler;
+        SttServiceOuterClass.RecognitionConfig config = SttServiceOuterClass.RecognitionConfig.newBuilder()
+                .setSpecification(SttServiceOuterClass.RecognitionSpec.newBuilder()
                         .setSampleRateHertz(8000)
-                        .setAudioEncoding(RecognitionSpec.AudioEncoding.LINEAR16_PCM)
-                        .setPartialResults(false)
+                        .setAudioEncoding(SttServiceOuterClass.RecognitionSpec.AudioEncoding.LINEAR16_PCM)
+                        .setPartialResults(true)
                         .build())
                 .build();
 
         serverHandler = sttClient.streamingRecognize(handleSpeechRecognitionResult(requestUUID));
 
-        StreamingRecognitionRequest request = StreamingRecognitionRequest.newBuilder()
+        SttServiceOuterClass.StreamingRecognitionRequest request = SttServiceOuterClass.StreamingRecognitionRequest.newBuilder()
                 .setConfig(config)
                 .build();
 
@@ -94,15 +74,11 @@ public class STTService {
         return serverHandler;
     }
 
-    private StreamObserver<StreamingRecognitionResponse> handleSpeechRecognitionResult(UUID uuid) {
-        return new StreamObserver<StreamingRecognitionResponse>() {
+    private StreamObserver<SttServiceOuterClass.StreamingRecognitionResponse> handleSpeechRecognitionResult(UUID uuid) {
+        return new StreamObserver<SttServiceOuterClass.StreamingRecognitionResponse>() {
             @Override
-            public void onNext(StreamingRecognitionResponse streamingRecognitionResponse) {
+            public void onNext(SttServiceOuterClass.StreamingRecognitionResponse streamingRecognitionResponse) {
                 System.out.println(streamingRecognitionResponse.toString());
-//                for (SpeechRecognitionChunk chunk : streamingRecognitionResponse.getChunksList()) {
-//                    boolean isFinal = chunk.getFinal();
-//
-//                }
             }
 
             @Override
@@ -117,5 +93,4 @@ public class STTService {
             }
         };
     }
-
 }
