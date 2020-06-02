@@ -1,5 +1,11 @@
 # java-vosk-grpc-test
 A simple test connecting via grpc from java to vosk-server  
+
+mvn clean install (java 1.8)
+  
+Client Logs:  
+  
+UNKNOWN: Exception iterating responses: 'result'  
   
 Server Logs:  
   
@@ -25,7 +31,3 @@ ERROR:grpc._server:Exception iterating responses: 'result'
 					File "./stt_server.py", line 70, in get_response  
 							words = [self.get_word_info(x) for x in res['result']]  
 			KeyError: 'result'  
-  
-Client Logs:  
-  
-UNKNOWN: Exception iterating responses: 'result'  
